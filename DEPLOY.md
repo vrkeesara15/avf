@@ -22,18 +22,31 @@ Architecture:
 
 ---
 
-## 1. One-time setup
+## Prerequisites
 
-Install the [gcloud CLI](https://cloud.google.com/sdk/docs/install) and
-[Firebase CLI](https://firebase.google.com/docs/cli), then:
+- A GCP project with **billing enabled** (note its `PROJECT_ID`).
+- The same project added to **Firebase** (free): https://console.firebase.google.com → *Add project* → select the existing GCP project, then enable **Hosting**.
+- [gcloud CLI](https://cloud.google.com/sdk/docs/install) and [Firebase CLI](https://firebase.google.com/docs/cli) installed.
+- Node 20+ and `openssl` locally.
 
 ```bash
 gcloud auth login
+firebase login
+```
+
+## 1. One-time setup (infrastructure + IAM)
+
+```bash
 PROJECT_ID=avf-foundation REGION=asia-south1 ./deploy/setup-gcp.sh
 ```
 
-This enables APIs and creates Firestore, the Artifact Registry repo, the
-gallery bucket, and the secret placeholders. Add secret values:
+The script enables the APIs and creates Firestore, the Artifact Registry repo,
+the gallery bucket, and the secret placeholders — **and grants all required
+IAM**: Cloud Build → `run.admin` + `artifactregistry.writer` + `serviceAccountUser`
+on the runtime SA; the Cloud Run runtime SA → `datastore.user`,
+`storage.objectAdmin`, and `secretAccessor` on each secret.
+
+Then add the secret **values** (the script prints the exact commands):
 
 ```bash
 printf '%s' "$(openssl rand -hex 32)" | gcloud secrets versions add avf-jwt-secret --data-file=-
@@ -44,15 +57,10 @@ printf '%s' "smtp-user"               | gcloud secrets versions add avf-smtp-use
 printf '%s' "smtp-pass"               | gcloud secrets versions add avf-smtp-pass --data-file=-
 ```
 
-Grant the Cloud Run runtime service account access to the secrets, Firestore,
-and the bucket (the default compute SA usually already has Firestore/Storage):
-
-```bash
-SA="$(gcloud iam service-accounts list --filter='displayName:Default compute' --format='value(email)')"
-for s in avf-jwt-secret avf-razorpay-key-id avf-razorpay-key-secret avf-smtp-host avf-smtp-user avf-smtp-pass; do
-  gcloud secrets add-iam-policy-binding "$s" --member="serviceAccount:$SA" --role=roles/secretmanager.secretAccessor
-done
-```
+> You can deploy **before** setting the Razorpay/SMTP values — the API then runs
+> in donation **test mode** and logs emails. `avf-jwt-secret` should be set
+> before going live. (Secrets must have at least one version, which the
+> placeholders above provide.)
 
 ## 2. Deploy the API (Cloud Run)
 
