@@ -1,10 +1,18 @@
 import { Link, useParams } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
 import { NotFound } from "./NotFound";
-import { programs, stories, posts } from "../data/content";
+import {
+  programs as fallbackPrograms,
+  stories,
+  posts,
+  type Program,
+} from "../data/content";
+import { api } from "../lib/api";
+import { useContent } from "../lib/useContent";
 
 export function ProgramDetail() {
   const { slug } = useParams();
+  const programs = useContent<Program[]>(api.getPrograms, fallbackPrograms);
   const program = programs.find((p) => p.slug === slug);
 
   if (!program) return <NotFound />;

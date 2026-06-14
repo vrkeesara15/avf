@@ -3,6 +3,7 @@ import { TextField, TextAreaField } from "../components/Field";
 import { useForm } from "../lib/useForm";
 import { isEmail, isPhone, required } from "../lib/validation";
 import { org } from "../data/content";
+import { api } from "../lib/api";
 
 interface ContactForm {
   name: string;
@@ -34,7 +35,10 @@ export function Contact() {
       if (!required(v.message)) e.message = "Please enter a message.";
       return e;
     },
-    () => {}
+    (v) => {
+      // CON-01/CON-02 — store the inquiry.
+      api.submitInquiry({ type: "contact", ...v }).catch(() => {});
+    }
   );
 
   // CON-03 — CSR / corporate partner form
@@ -49,7 +53,10 @@ export function Contact() {
       if (!required(v.nature)) e.nature = "Tell us about the partnership.";
       return e;
     },
-    () => {}
+    (v) => {
+      // CON-03 — store the CSR partnership inquiry.
+      api.submitInquiry({ type: "partner", ...v }).catch(() => {});
+    }
   );
 
   return (

@@ -5,6 +5,8 @@ import { donationTiers, org } from "../data/content";
 import { formatNumber } from "../components/ImpactCounter";
 import { TextField } from "../components/Field";
 import { isEmail, isPhone, isPAN, required, type Errors } from "../lib/validation";
+import { api, type OrderResponse } from "../lib/api";
+import { openRazorpayCheckout } from "../lib/razorpay";
 
 interface DonorForm {
   name: string;
@@ -42,6 +44,8 @@ export function Donate() {
     amount: number;
     name: string;
   }>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [serverError, setServerError] = useState("");
 
   const selectTier = (value: number) => {
     setAmount(value);
@@ -73,23 +77,60 @@ export function Donate() {
     return e;
   };
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const found = validate();
     setErrors(found);
-    if (Object.keys(found).length === 0) {
-      // DON-01/DON-06 — in production this hands off to Razorpay, then a
-      // server generates and emails the 80G PDF receipt.
-      setReceipt({
-        id: `AVF-${new Date().getFullYear()}-${Math.floor(
-          performance.now()
-        )
-          .toString()
-          .padStart(6, "0")}`,
-        amount,
-        name: form.name,
+    if (Object.keys(found).length > 0) return;
+
+    const donor = {
+      name: form.name,
+      email: form.email,
+      phone: form.phone,
+      pan: form.pan,
+      city: form.city,
+      organisation: form.organisation || undefined,
+      marketingConsent: false,
+    };
+
+    setSubmitting(true);
+    setServerError("");
+    try {
+      // DON-01 — create the payment order on the server.
+      const order: OrderResponse = await api.createOrder(amount, frequency);
+
+      // Obtain the payment handshake: deterministic in test mode, real
+      // Razorpay checkout otherwise.
+      let paymentId: string;
+      let signature: string;
+      if (order.testMode && order.testPaymentId && order.testSignature) {
+        paymentId = order.testPaymentId;
+        signature = order.testSignature;
+      } else {
+        const result = await openRazorpayCheckout(order, donor);
+        paymentId = result.razorpay_payment_id;
+        signature = result.razorpay_signature;
+      }
+
+      // DON-05/DON-06 — verify + issue the 80G receipt.
+      const res = await api.verifyDonation({
+        donationId: order.donationId,
+        razorpay_order_id: order.orderId,
+        razorpay_payment_id: paymentId,
+        razorpay_signature: signature,
+        donor,
       });
+
+      setReceipt({ id: res.receiptNo, amount: res.amount, name: form.name });
       window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      setServerError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong processing your donation. Please try again."
+      );
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -269,13 +310,23 @@ export function Donate() {
               and used only for your 80G receipt.
             </p>
 
+            {serverError && (
+              <p className="field-error" role="alert" style={{ marginTop: "1rem" }}>
+                {serverError}
+              </p>
+            )}
+
             <button
               type="submit"
               className="btn btn--donate btn--lg btn--block"
               style={{ marginTop: "1.5rem" }}
+              disabled={submitting}
             >
-              ❤ Donate ₹{formatNumber(amount || 0)}
-              {frequency !== "one-time" ? ` ${frequency}` : ""}
+              {submitting
+                ? "Processing…"
+                : `❤ Donate ₹${formatNumber(amount || 0)}${
+                    frequency !== "one-time" ? ` ${frequency}` : ""
+                  }`}
             </button>
 
             <p

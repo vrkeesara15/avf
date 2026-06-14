@@ -3,6 +3,7 @@ import { TextField, SelectField } from "../components/Field";
 import { useForm } from "../lib/useForm";
 import { isEmail, isPhone, required } from "../lib/validation";
 import { volunteerRoles, volunteerInterests } from "../data/content";
+import { api } from "../lib/api";
 
 interface VolForm {
   name: string;
@@ -40,8 +41,22 @@ export function GetInvolved() {
         if (!required(v.interest)) e.interest = "Please pick an area of interest.";
         return e;
       },
-      () => {
-        /* VOL-02 — server sends acknowledgement email here. */
+      (v) => {
+        // VOL-01/VOL-02 — persist registration; server emails the ack.
+        api
+          .registerVolunteer({
+            name: v.name,
+            email: v.email,
+            phone: v.phone,
+            city: v.city,
+            profession: v.profession,
+            availability: v.availability,
+            interest: v.interest,
+            consent: v.consent,
+          })
+          .catch(() => {
+            /* network errors are non-blocking for this demo flow */
+          });
       }
     );
 

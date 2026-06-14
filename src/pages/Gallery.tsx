@@ -1,8 +1,16 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
-import { albums, photos, type Album } from "../data/content";
+import {
+  albums,
+  photos as fallbackPhotos,
+  type Album,
+  type Photo,
+} from "../data/content";
+import { api } from "../lib/api";
+import { useContent } from "../lib/useContent";
 
 export function Gallery() {
+  const photos = useContent<Photo[]>(api.getGallery, fallbackPhotos);
   const [album, setAlbum] = useState<Album>("All");
   const [lightbox, setLightbox] = useState<number | null>(null);
 

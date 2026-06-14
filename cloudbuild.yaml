@@ -1,0 +1,53 @@
+# Cloud Build pipeline: build the API container, push to Artifact Registry,
+# and deploy to Cloud Run. Trigger from GitHub or run manually:
+#
+#   gcloud builds submit --config cloudbuild.yaml \
+#     --substitutions=_REGION=asia-south1,_SERVICE=avf-api,_REPO=avf
+#
+# Prereqs (one-time): see DEPLOY.md.
+
+substitutions:
+  _REGION: asia-south1            # Mumbai (data localisation, §8.4)
+  _SERVICE: avf-api
+  _REPO: avf
+  _CORS_ORIGINS: "https://avf-foundation.web.app,https://akshayavidya.org"
+
+images:
+  - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA"
+
+steps:
+  # 1. Build the image from /server
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:latest"
+      - "./server"
+
+  # 2. Push the image
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - "--all-tags"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}"
+
+  # 3. Deploy to Cloud Run (Firestore via ADC; secrets via Secret Manager)
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - "${_SERVICE}"
+      - "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPO}/${_SERVICE}:$SHORT_SHA"
+      - "--region=${_REGION}"
+      - "--platform=managed"
+      - "--allow-unauthenticated"
+      - "--port=8080"
+      - "--set-env-vars=NODE_ENV=production,DATA_STORE=firestore,GCP_PROJECT_ID=$PROJECT_ID,CORS_ORIGINS=${_CORS_ORIGINS}"
+      - "--set-secrets=JWT_SECRET=avf-jwt-secret:latest,RAZORPAY_KEY_ID=avf-razorpay-key-id:latest,RAZORPAY_KEY_SECRET=avf-razorpay-key-secret:latest,SMTP_HOST=avf-smtp-host:latest,SMTP_USER=avf-smtp-user:latest,SMTP_PASS=avf-smtp-pass:latest"
+      - "--update-env-vars=GCS_BUCKET=$PROJECT_ID-gallery"
+
+options:
+  logging: CLOUD_LOGGING_ONLY

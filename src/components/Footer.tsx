@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { org } from "../data/content";
 import { footerQuickLinks, footerSupportLinks } from "../data/nav";
 import { Logo } from "./Logo";
+import { api } from "../lib/api";
 
 export function Footer() {
   const [email, setEmail] = useState("");
@@ -10,12 +11,17 @@ export function Footer() {
   // NAV-07 — copyright with auto-updating year.
   const year = new Date().getFullYear();
 
-  const onSubscribe = (e: React.FormEvent) => {
+  const onSubscribe = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-      setSubscribed(true);
-      setEmail("");
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return;
+    // Newsletter signup (NEWS-06). Optimistic — failures are non-blocking.
+    try {
+      await api.subscribe(email);
+    } catch {
+      /* ignore network errors for newsletter UX */
     }
+    setSubscribed(true);
+    setEmail("");
   };
 
   return (

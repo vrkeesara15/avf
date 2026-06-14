@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { PageHeader } from "../components/PageHeader";
-import { posts, events, reports, type Post } from "../data/content";
+import {
+  posts as fallbackPosts,
+  events as fallbackEvents,
+  reports,
+  type Post,
+  type AvfEvent,
+} from "../data/content";
+import { api } from "../lib/api";
+import { useContent } from "../lib/useContent";
 
 const categories: ("All" | Post["category"])[] = [
   "All",
@@ -11,6 +19,8 @@ const categories: ("All" | Post["category"])[] = [
 ];
 
 export function News() {
+  const posts = useContent<Post[]>(api.getPosts, fallbackPosts);
+  const events = useContent<AvfEvent[]>(api.getEvents, fallbackEvents);
   const [cat, setCat] = useState<(typeof categories)[number]>("All");
   const visible = cat === "All" ? posts : posts.filter((p) => p.category === cat);
 

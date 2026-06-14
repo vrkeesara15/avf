@@ -1,13 +1,28 @@
 import { useMemo, useState } from "react";
 import { PageHeader } from "../components/PageHeader";
 import { ImpactCounter } from "../components/ImpactCounter";
-import { metrics, stories, testimonials } from "../data/content";
+import {
+  metrics as fallbackMetrics,
+  stories as fallbackStories,
+  testimonials as fallbackTestimonials,
+  type Metric,
+  type Story,
+  type Testimonial,
+} from "../data/content";
+import { api } from "../lib/api";
+import { useContent } from "../lib/useContent";
 
 export function Impact() {
+  const metrics = useContent<Metric[]>(api.getMetrics, fallbackMetrics);
+  const stories = useContent<Story[]>(api.getStories, fallbackStories);
+  const testimonials = useContent<Testimonial[]>(
+    api.getTestimonials,
+    fallbackTestimonials
+  );
   // IMP-04 — filter AVF Stars by programme vertical.
   const storyFilters = useMemo(
     () => ["All", ...Array.from(new Set(stories.map((s) => s.program)))],
-    []
+    [stories]
   );
   const [filter, setFilter] = useState("All");
 

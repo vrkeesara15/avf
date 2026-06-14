@@ -29,6 +29,15 @@ coverage/
 # TS build info
 *.tsbuildinfo
 
+# Server secrets & artifacts
+.env
+.env.*
+!.env.example
+server/uploads/
+uploads/
+service-account*.json
+*-key.json
+
 # Requirements document — internal source material, not for the repo
 AVF_Web_Application_Requirements_Document.docx
 *.docx

@@ -1,10 +1,13 @@
 import { Link } from "react-router-dom";
 import { PageHeader } from "../components/PageHeader";
-import { programs } from "../data/content";
+import { programs as fallbackPrograms, type Program } from "../data/content";
+import { api } from "../lib/api";
+import { useContent } from "../lib/useContent";
 
 const categories = ["Education", "Empowerment", "Community"] as const;
 
 export function Programs() {
+  const programs = useContent<Program[]>(api.getPrograms, fallbackPrograms);
   return (
     <>
       <PageHeader

@@ -1,8 +1,31 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderPage } from "../test/render";
 import { Donate } from "./Donate";
+
+// Mock the API so the donation flow is deterministic and offline.
+vi.mock("../lib/api", () => ({
+  api: {
+    createOrder: vi.fn(async (amount: number) => ({
+      donationId: "don_test",
+      orderId: "test_order_don_test",
+      amount: amount * 100,
+      currency: "INR",
+      keyId: "rzp_test",
+      testMode: true,
+      testPaymentId: "pay_test_don_test",
+      testSignature: "sig_test",
+    })),
+    verifyDonation: vi.fn(async () => ({
+      status: "paid",
+      receiptNo: "AVF-2026-12345678",
+      amount: 2400,
+      message: "Donation successful",
+    })),
+    subscribe: vi.fn(async () => ({ message: "ok" })),
+  },
+}));
 
 const setup = (route = "/donate") => renderPage("/donate", <Donate />, { route });
 
@@ -68,7 +91,7 @@ describe("Donate page", () => {
 
     await user.click(within(form).getByRole("button", { name: /donate ₹/i }));
 
-    expect(screen.getByText(/donation successful/i)).toBeInTheDocument();
+    expect(await screen.findByText(/donation successful/i)).toBeInTheDocument();
     const success = screen.getByText(/donation successful/i).closest("div")!;
     expect(within(success).getByText(/80G-compliant tax receipt/i)).toBeInTheDocument();
   });

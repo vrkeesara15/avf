@@ -1,17 +1,33 @@
 import { Link } from "react-router-dom";
 import {
-  metrics,
-  programs,
-  stories,
-  testimonials,
+  metrics as fallbackMetrics,
+  programs as fallbackPrograms,
+  stories as fallbackStories,
+  testimonials as fallbackTestimonials,
   donationTiers,
-  posts,
+  posts as fallbackPosts,
   partners,
+  type Metric,
+  type Program,
+  type Story,
+  type Testimonial,
+  type Post,
 } from "../data/content";
 import { ImpactCounter, formatNumber } from "../components/ImpactCounter";
 import { Carousel } from "../components/Carousel";
+import { api } from "../lib/api";
+import { useContent } from "../lib/useContent";
 
 export function Home() {
+  const metrics = useContent<Metric[]>(api.getMetrics, fallbackMetrics);
+  const programs = useContent<Program[]>(api.getPrograms, fallbackPrograms);
+  const stories = useContent<Story[]>(api.getStories, fallbackStories);
+  const testimonials = useContent<Testimonial[]>(
+    api.getTestimonials,
+    fallbackTestimonials
+  );
+  const posts = useContent<Post[]>(api.getPosts, fallbackPosts);
+
   const heroMetrics = metrics.slice(0, 4);
   const featuredPrograms = programs.slice(0, 6);
   const latestNews = posts.slice(0, 3);
